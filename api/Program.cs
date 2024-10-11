@@ -1,39 +1,100 @@
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://localhost:5000");
 var app = builder.Build();
 
 app.MapGet("/", () => "Hello World 2");
-app.MapPost("/user", () => new { Name = "Rodrigo Amorim", Age = 25 });
-app.MapGet("/AddHeader", (HttpResponse response) =>
-{
-    response.Headers.Add("teste", "Rodrigo Amorim");
-    return new { Name = "Rodrigo Amorim", Age = 25 };
-});
 
-app.MapPost("saveproduct", (Product product) =>
+app.MapPost("products", (Product product) =>
 {
-    return product.Code + " - " + product.Name;
+    ProductRepository.Add(product);
+    return Results.Created($"/products/{product.Code}", product);
 });
-
 
 //api.app.com/users?datastart={date}&dateend={date}
-app.MapGet("/getproduct", ([FromQuery] string dateStart, [FromQuery] string dateEnd) =>
+app.MapGet("/products", ([FromQuery] string dateStart, [FromQuery] string dateEnd) =>
 {
-    return dateStart + " - " + dateEnd;
-});
-//api.app.com/user/{code}
-app.MapGet("/getproduct/{code}", ([FromRoute] string code) =>
-{
-    return code;
+    return Results.Ok(dateStart + " - " + dateEnd);
+
 });
 
-app.MapGet("/getproductbyheader", (HttpRequest request) =>
+//api.app.com/user/{code}
+app.MapGet("/products/{code}", (string code) =>
 {
-    return request.Headers["product-code"].ToString();
+    var product = ProductRepository.GetBy(code);
+    if (product == null)
+    {
+        return Results.NotFound();
+    }
+    return Results.Ok(product);
 });
+
+app.MapPut("/products", async (HttpContext context) =>
+{
+    var product = await context.Request.ReadFromJsonAsync<Product>();
+    if (product == null)
+    {
+        return Results.BadRequest();
+    }
+
+    var productSaved = ProductRepository.GetBy(product.Code);
+    if (productSaved == null)
+    {
+        return Results.NotFound();
+    }
+
+    productSaved.Name = product.Name;
+    return Results.Ok(productSaved);
+});
+
+app.MapDelete("/products/{code}", ([FromRoute] string code) =>
+{
+    var productSaved = ProductRepository.GetBy(code);
+    ProductRepository.Remove(productSaved);
+    return Results.Ok(productSaved);
+});
+
 
 app.Run();
+
+public static class ProductRepository
+{
+    private static List<Product> Products = new List<Product>();
+
+    public static void Add(Product product)
+    {
+        if (Products == null)
+            Products = new List<Product>();
+
+        Products.Add(product);
+    }
+
+    public static List<Product> GetByDateRange(string dateStart, string dateEnd)
+    {
+        // Implement logic to filter products by date range
+        return Products;
+    }
+
+    public static Product? GetBy(string code)
+    {
+        return Products.FirstOrDefault(p => p.Code == code);
+    }
+
+    public static void Update(Product product)
+    {
+        var existingProduct = GetBy(product.Code);
+        if (existingProduct != null)
+        {
+            existingProduct.Name = product.Name;
+        }
+    }
+
+    public static void Remove(Product product)
+    {
+        Products.Remove(product);
+    }
+}
 
 public class Product
 {

@@ -32,3 +32,5 @@ node_modules/
 .vs/
 .DS_Store
 Thumbs.db
+
+.fake
