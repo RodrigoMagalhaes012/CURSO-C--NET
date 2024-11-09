@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://localhost:5000");
 var app = builder.Build();
+var configuration = builder.Configuration;
+ProductRepository.Init(configuration);
 
 app.MapGet("/", () => "Hello World 2");
 
@@ -55,12 +57,23 @@ app.MapDelete("/products/{code}", ([FromRoute] string code) =>
     return Results.Ok(productSaved);
 });
 
+app.MapGet("/configuration/database", (IConfiguration configuration) =>
+{
+    return Results.Ok($"{configuration["database:connection"]}/{configuration["database:port"]}");
+});
+
 
 app.Run();
 
 public static class ProductRepository
 {
     private static List<Product> Products = new List<Product>();
+
+    public static void Init(IConfiguration configuration)
+    {
+        var products = configuration.GetSection("products").Get<List<Product>>();
+        Products = products;
+    }
 
     public static void Add(Product product)
     {
